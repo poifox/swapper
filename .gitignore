@@ -40,5 +40,9 @@ nosetests.xml
 
 #particular to this project
 config.json
-test.blend
+*.blend1
+*.blend2
+*.blend3
+*.blend4
+*.blend5
 .cache

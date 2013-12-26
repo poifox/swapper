@@ -16,8 +16,7 @@ bl_info = {
 import string
 import random
 import base64
-import urllib2
-import httplib2
+import requests
 import mimetypes
 
 is_testing = False
@@ -100,10 +99,8 @@ class BlendSwapper():
 	
 	def isLoggedIn(self):
 		"""Check if user is already logged in"""
-		if None == self.config['cookie']:
+		if None == self.config['cookie'] or len(self.config['cookie']) == 0:
 			return self.login()
-		elif len(self.config['cookie']) < 50:
-			return False
 		elif not self.isSetup():
 			return False
 		else:
@@ -112,11 +109,12 @@ class BlendSwapper():
 	
 	def askLogin(self):
 		"""Ask the server if user is logged in"""
-		adapter = httplib2.Http(".cache")
 		url = self.server + self.auth_path
 		headers = {"Cookie": self.config["cookie"]}
-		resp, content = adapter.request(url,"GET",headers=headers)
-		response = self.parseResponse(content)
+		req = requests.get(url,headers=headers)
+		for prop in req:
+			print prop
+		response = self.parseResponse(req.text)
 		self.saveConfig()
 		if response['isLoggedIn'] == 0:
 			self.login()
@@ -140,13 +138,12 @@ class BlendSwapper():
 		url = self.server + self.auth_path
 		body = {"User[username]": self.config["username"], "User[password]": self.config["password"]}
 		headers = {"Content-type": "application/x-www-form-urlencoded"}
-		adapter = httplib2.Http(".cache")
-		resp, content = adapter.request(url,"POST",headers=headers,body=urllib2.urlencode(body))
+		r = requests.post(url,headers=headers,data=body)
 		# print resp, content
-		response = self.parseResponse(content)
+		response = self.parseResponse(r.text)
 		if response["user_id"] > 0:
 			self.config["user_id"] = response["user_id"]
-			self.config["cookie"] = self.getAuthCookie(resp)
+			self.config["cookie"] = self.getAuthCookie(r.headers)
 			print "You are now logged into Blend Swap"
 		else:
 			print "There was an error logging in to Blend Swap"
@@ -156,28 +153,26 @@ class BlendSwapper():
 	def sendFile(self,filename=""):
 		"""Send a file to BlendSwap"""
 		if "" == filename:
+			print "ERROR! No filename was given"
 			return False
 		print "Sending " + filename
-		form_data = {
-			"body": "This is the description of the blend",
-			"tags": "taggy, tagger, tagaru",
-			"title": "Test title",
-			"user_id": self.config["user_id"],
-			"fan_art": 1,
-			"blender_version": 268 }
-		upload_file = {
-			"File[blend_file]": {
-				"filename": filename, 
-				"content": open(filename,"rb").read()
-				}
-			}
-		headers, body = self.encode_multipart(form_data,upload_file)
+		form_fields = {
+			"Blend[body]": "This is the description of the blend",
+			"Blend[tags]": "taggy, tagger, tagaru",
+			"Blend[title]": "Test title",
+			"Blend[user_id]": self.config["user_id"],
+			"Blend[fan_art]": 1,
+			"Blend[blend_license]": "CC-BY-SA",
+			"Blend[blender_version]": 268, }
+		blend_file = { "blend_file": (filename, open(filename,"rb")) }
 		url = self.server + self.add_path
-		# print url
-		adapter = httplib2.Http('.cache')
-		resp, content = adapter.request(url,"POST",headers=headers,body=body)
-		print resp, content
-		return False
+		headers = {
+			'Cookie': self.config["cookie"]
+		}
+		
+		r = requests.post(url,files=blend_file,data=form_fields,headers=headers)
+		
+		return True
 	
 	def encode_multipart(self,fields, files):
 		BOUNDARY = ''.join(random.choice(BOUNDARY_CHARS) for i in range(8))
@@ -209,11 +204,7 @@ class BlendSwapper():
 			))
 		body = "\r\n".join(lines)
 		print body
-		headers = {
-			'Content-Type': 'multipart/form-data; boundary={0}'.format(BOUNDARY),
-			'Content-Length': str(len(body)),
-			'Cookie': self.config["cookie"]
-		}
+		
 		return (headers, body)
 	
 		
