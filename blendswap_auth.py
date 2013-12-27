@@ -1,6 +1,8 @@
 
+
 import requests
 import json
+
 
 class BlendSwapAuth:
 	
@@ -24,6 +26,10 @@ class BlendSwapAuth:
 	
 	def __init__(self):
 		"""Init instance"""
+		if self.testConnectivity():
+			print "Connected to " + self.server
+		else:
+			print "Impossible to conect to " + self.server
 		if not self.readConfig():
 			print "Creating config.json..."
 			self.createConfig()
@@ -31,6 +37,11 @@ class BlendSwapAuth:
 			self.setup()
 		if not self.isLoggedIn():
 			self.login()
+	
+	def testConnectivity(self):
+		"""Ping the server and see if it's reachable"""
+		req = requests.get(self.server)
+		return 200 == req.status_code
 	
 	def readConfig(self):
 		"""Load the config file and parse it to a local object"""
@@ -159,3 +170,6 @@ class BlendSwapAuth:
 			value = raw_input(key.title() + ": ")
 		self.config[ key ] = value
 		return value
+
+# if __name__ == "__main__":
+	# auth = BlendSwapAuth()
